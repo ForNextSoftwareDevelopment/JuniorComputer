@@ -1,1 +1,134 @@
+<Introduction>
+
+This is an assembler/disassembler for the MOS-6502 microprocessor.
+It can also simulate an (Elektor) Junior Computer board (keyboard/display).
+
+<Operations>
+
+After loading a source file into the main window you can debug (assemble) it with the debugger button.
+
+The startaddress is set to the value of the reset vector (0xFFFC and 0xFFFD).
+The first error it encounters will be highlighted in light red.
+Ajustments can be made in the main window (don't forget to save).
+If no errors were encountered, the simulator is ready to run (or step) through the program and the first instruction to be executed will be highlighted in light green.
+
+Running will be with a delay of 50 ms between instructions (this can be adjusted in the main screen).
+
+Setting the program counter to a specific address can be done by entering this address in the the 'set program counter' textbox and close with an enter. 
+
+At any time the memory can be viewed in the right windows.
+The memory window will follow the next instruction to be executed, this can be prevented with the 'Lock' checkbox.
+The memory window can be easily set to the program counter or stack pointer with the designated buttons.
+
+On the left all registers of the 6502 are shown.
+Also the flags are displayed. 
+
+A keyboard/display of the junior computer is visible at the bottom-right corner.
+
+<Assembler>
+
+The assembler can use all of the official instructions of the 6502 processor.
+All instructions are implemented by buttons on the left of the screen for reference and/or inserting the selected instruction into the program.
+Numbers should be denoted in decimal, hexadecimal (0x00, $00 or 00H style) or binary (10101010B style).
+
+The following directives can be used (example on next row(s)):
+
+`ASEG` Use the location counter for the absolute program segment
+`CSEG` Use the location counter for the code program segment
+`DSEG` Use the location counter for the data program segment
+Followed by and 'ORG' directive the assembler will set the segemnt to this address
+
+`ORG address` Set locationcounter to this address (while assembling)
+ORG 0000H
+
+`LABEL EQU constant` Assignement of a constant
+DSPLY EQU 1800H 
+
+`$` Current location counter (while assembling)
+NUMC EQU $ - CMDTB ; NUMBER OF COMMANDS 
+
+`[LABEL] DB value` Reserving a (number of) byte(s) (with or without label), strings in double quotes will be terminated by a zero
+STRING DB "SDK-85"
+CHARARRAY DB 'SDK-85'
+AT DB '@', 00H
+DB 00H, 01H, 02H
+DB 'A', 'B', 'C'
+
+`[LABEL] DW value` Reserving a word (with or without label)
+DW 0000H
+CMDAD: 
+        DW      SSTEP   ; ADDRESS OF SINGLE STEP ROUTINE 
+        DW      EXAM    ; ADDRESS OF EXAMINE REGISTERS ROUTINE 
+        DW      SUBST   ; ADDRESS OF SUBSTITUTE MEMORY ROUTINE 
+        DW      GOCMD   ; ADDRESS OF GO ROUTINE 
+
+`[LABEL] DS number` Reserving 'number' of bytes  
+
+`LOW([LABEL])` will give the low byte of 2 bytes (usually an address) 
+`HIGH([LABEL])` will give the high byte of 2 bytes (usually an address) 
+
+`Arithmetic` e.g. +1, -2, *4, /2 
+USRBR EQU RAMST + 256 - (RMUSE + SKLN + UBRLN)
+
+`Logical` AND, OR 
+FLAG & 01H
+FLAG | 80H
+
+<DisAssembler>
+
+The disassembler will follow all possible paths from an entry address.
+Additional paths can be provided.
+As an option labels can be inserted for jump and call addresses.
+
+<Menu>
+
+`File->New` 
+
+Delete source file and reset simulator
+
+`File->Open` 
+
+Load a new source file
+
+`File->Save` 
+
+Save the current source file
+
+`File->Save As`
+
+Save the current source file under a given name
+ 
+`File->Save Binary`
+
+Save the binary from assembling the current source
+
+`File->Quit`
+
+Quit program
+
+`Reset->Reset RAM`
+
+Clear RAM
+
+`Reset->Reset Simulator`
+
+Clear RAM, Registers, Flags
+
+`DisAssembler->Open Binary`
+
+Open a binary file for disassembly
+
+`Help->Manual` 
+
+Show this manual
+
+`Help->About`
+
+Show program info
+
+-----------------------------------------------------
+Please report any bugs you encounter,
+Dirk
+info@fornext.nl 
+
 
