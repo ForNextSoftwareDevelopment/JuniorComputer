@@ -5,13 +5,9 @@ This is an assembler/disassembler for the Elektor (Electuur) Junior Computer (MO
 Currently I am restoring a Junior Computer and decided to make a simulator for debugging code I (will) write for it.
 
 You can start by loading the monitor.asm program from the folder 'Monitor'.
-
 This contains the operating system.
-
 Use the button 'Debug' to debug/assemble the file.
-
 Then press the button 'Fast' (fast forward sign) to run the program.
-
 
 THIS IS A BETA VERSION, STILL WORKING ON IT !
 
