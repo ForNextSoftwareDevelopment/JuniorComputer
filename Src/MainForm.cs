@@ -497,10 +497,10 @@ namespace JuniorComputer
                     addressing = "Absolute: operand is address nn";
                     break;
                 case ADDRESSING.ABSOLUTEX:
-                    addressing = "Absolute, X-indexed: effective address is address nn incremented by X with Carry";
+                    addressing = "Absolute, X-indexed: effective address is address nn incremented by X";
                     break;
                 case ADDRESSING.ABSOLUTEY:
-                    addressing = "Absolute, Y-indexed: effective address is address nn incremented by Y with Carry";
+                    addressing = "Absolute, Y-indexed: effective address is address nn incremented by Y";
                     break;
                 case ADDRESSING.IMMEDIATE:
                     addressing = "Immediate: operand is byte n";
@@ -515,7 +515,7 @@ namespace JuniorComputer
                     addressing = "X-indexed, Indirect: effective address is contents of word at address + X";
                     break;
                 case ADDRESSING.INDIRECTY:
-                    addressing = "Indirect, Y-indexed: effective address is contents of word + Y + Carry at address";
+                    addressing = "Indirect, Y-indexed: effective address is contents of word + Y at address";
                     break;
                 case ADDRESSING.RELATIVE:
                     addressing = "Relative: branch target is PC + signed offset n";
