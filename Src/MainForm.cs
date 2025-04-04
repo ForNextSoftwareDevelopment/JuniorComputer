@@ -604,7 +604,7 @@ namespace JuniorComputer
 
         private void saveBinary_Click(object sender, EventArgs e)
         {
-            if (assembler.programRun == null)
+            if ((assembler == null) || (assembler.programRun == null))
             {
                 MessageBox.Show("Nothing yet to save", "WARNING", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -681,14 +681,14 @@ namespace JuniorComputer
                 return;
             }
 
-            start = Convert.ToUInt16(textBoxFrom.Text, 16);
-            end = Convert.ToUInt16(textBoxTo.Text, 16);
-
-            if ((start > 0xFFFF) || (end > 0xFFFF))
+            if ((Convert.ToUInt64(textBoxFrom.Text, 16) > 0xFFFF) || (Convert.ToUInt64(textBoxTo.Text, 16) > 0xFFFF))
             {
                 MessageBox.Show("Addresses must be between 0000 and FFFF", "WARNING", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
+            start = Convert.ToUInt16(textBoxFrom.Text, 16);
+            end = Convert.ToUInt16(textBoxTo.Text, 16);
 
             if (start > end)
             {
@@ -697,8 +697,8 @@ namespace JuniorComputer
             }
 
             // New byte array with only used code 
-            byte[] bytes = new byte[end - start];
-            for (int i = 0; i < end - start; i++)
+            byte[] bytes = new byte[end - start + 1];
+            for (int i = 0; i <= end - start; i++)
             {
                 bytes[i] = assembler.RAM[start + i];
             }

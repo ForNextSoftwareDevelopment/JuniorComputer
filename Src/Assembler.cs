@@ -691,7 +691,6 @@ namespace JuniorComputer
                                         matchOperands = false;
                                     }
                                     value = Get2Bytes(opr, out result);
-                                    if ((result == "OK") && (value <= 0xFF)) matchOperands = false;
                                     break;
                                 case "(n":
                                     if (!opr.StartsWith("("))
@@ -715,6 +714,8 @@ namespace JuniorComputer
                                 case "nn":
                                     value = Get2Bytes(opr, out result);
                                     if ((result == "OK") && (value <= 0xFF)) matchOperands = false;
+                                    if ((opcode == "STA") && (operands.Length == 2) && (operands[1] == "Y") && (result == "OK") && (value <= 0xFF)) matchOperands = true;
+                                    if ((opcode == "LDX") && (operands.Length == 2) && (result == "OK") && (value <= 0xFF)) matchOperands = true;
                                     if (opr.StartsWith("(") || opr.StartsWith("#") || (opr == "A")) matchOperands = false;
                                     break;
                             }
@@ -1515,18 +1516,31 @@ namespace JuniorComputer
                             if (result == "OK") RAM[locationCounter++] = (byte)calcShort; else return ("Error in arguments '" + args + "':\r\n" + result + "\r\nAt line " + (lineNumber + 1));
                             break;
                         case ADDRESSING.RELATIVE:
-                            // Relative jump, so calulate offset    
-                            calcShort = Get2Bytes(operands[0], out result);
-                            if (result == "OK")
+                            if (addressSymbolTable.ContainsKey(operands[0]))
                             {
-                                int offset = calcShort - locationCounter - 1;
-                                if (offset > 127) return ("Offset to large for " + opcode + ":\r\nOffset = " + offset + " (max 127)\r\nAt line " + (lineNumber + 1));
-                                if (offset < -128) return ("Offset to small for " + opcode + ":\r\nOffset = " + offset + " (min -128)\r\nAt line " + (lineNumber + 1));
-                                RAMprogramLine[locationCounter] = lineNumber;
-                                RAM[locationCounter++] = (byte)(offset);
+                                calcShort = Get2Bytes(operands[0], out result);
+                                if (result == "OK")
+                                {
+                                    int offset = calcShort - locationCounter - 1;
+                                    if (offset > 127) return ("Offset to large for " + opcode + ":\r\nOffset = " + offset + " (max 127)\r\nAt line " + (lineNumber + 1));
+                                    if (offset < -128) return ("Offset to small for " + opcode + ":\r\nOffset = " + offset + " (min -128)\r\nAt line " + (lineNumber + 1));
+                                    RAMprogramLine[locationCounter] = lineNumber;
+                                    RAM[locationCounter++] = (byte)(offset);
+                                } else
+                                {
+                                    return ("Error in arguments '" + args + "':\r\n" + result + "\r\nAt line " + (lineNumber + 1));
+                                }
                             } else
                             {
-                                return ("Error in arguments '" + args + "':\r\n" + result + "\r\nAt line " + (lineNumber + 1));
+                                int offset = GetByte(operands[0], out result);
+                                if (result == "OK")
+                                {
+                                    RAMprogramLine[locationCounter] = lineNumber;
+                                    RAM[locationCounter++] = (byte)(offset);
+                                } else
+                                {
+                                    return ("Error in arguments '" + args + "':\r\n" + result + "\r\nAt line " + (lineNumber + 1));
+                                }
                             }
                             break;
                         case ADDRESSING.ZEROPAGE:

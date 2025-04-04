@@ -1,1 +1,1 @@
-In the folder 'Monitor' are 2 versions of the monitor program for the Junior Computer
+In the folder 'Monitor' is the monitor program for the Junior Computer

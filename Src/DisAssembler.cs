@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,20 +12,8 @@ namespace JuniorComputer
     {
         #region Members
 
-        // Type of the decoded instruction: (un)conditional jump/call/restart or none
-        private enum TYPE
-        {
-            NONE, 
-            CONDITIONALJUMP, 
-            CONDITIONALCALL, 
-            UNCONDITIONALJUMP, 
-            UNCONDITIONALCALL, 
-            CONDITIONALRETURN, 
-            UNCONDITIONALRETURN, 
-            CONDITIONALRESTART, 
-            UNCONDITIONALRESTART,
-            PCHL
-        }
+        // All instructions
+        Instructions instructions;
 
         // Binary file buffer
         private byte[] bytes;
@@ -67,6 +56,9 @@ namespace JuniorComputer
             this.loadAddress = loadAddress;
             this.useLabels = useLabels;
 
+            // All instructions
+            instructions = new Instructions();
+            
             lineDecoded = new bool[0xFFFF];
             addresses = new Dictionary<ushort, bool>();
 
@@ -85,7 +77,7 @@ namespace JuniorComputer
             dtProgram.Columns.Add("size", typeof(UInt16));
             dtProgram.Columns.Add("type", typeof(int));
 
-            dtProgram.Rows.Add(null, "ORG " + loadAddress.ToString("X4"), 0);
+            dtProgram.Rows.Add(null, ".ORG $" + loadAddress.ToString("X4"), 0);
         }
 
         #endregion
@@ -129,45 +121,80 @@ namespace JuniorComputer
                         // Still some path's to go
                         ready = false;
 
-                        string instruction = Decode(bytes[(UInt16)(address - loadAddress)], out uint count, out TYPE type);
+                        string instruction = Decode(bytes[(UInt16)(address - loadAddress)], out int size, out TYPE type);
                         lineDecoded[address] = true;
+                        address++;
 
                         // No operands
-                        if (count == 0) 
+                        if (size == 1) 
                         {
                             // Check for end of the path (RETURN, RESTART)
-                            if ((type == TYPE.UNCONDITIONALRETURN) ||
-                                (type == TYPE.UNCONDITIONALRESTART) ||
-                                (type == TYPE.PCHL))
+                            if (type == TYPE.UNCONDITIONALRETURN)
                             {
                                 done = true;
                             }
-
-                            // Check for conditional end of the path (RETURN ON ZERO, RESTART ON OVERFLOW etc.)
-                            if ((type == TYPE.CONDITIONALRETURN) ||
-                                (type == TYPE.CONDITIONALRESTART))
-                            {
-                                // No action
-                            }
-
-                            address++;
                         }
 
                         // 1 operand
-                        if (count == 1)
+                        if (size == 2)
                         {
-                            address++;
                             if ((address - loadAddress) < bytes.Length)
                             {
-                                string operand = " " + bytes[(UInt16)(address - loadAddress)].ToString("X2") + "H";
-                                instruction += operand;
+                                byte operand = bytes[(UInt16)(address - loadAddress)];
+                                string operand_hexascii = "$" + operand.ToString("X2");
                                 lineDecoded[address] = true;
                                 address++;
+
+                                // Replace operand in mnemonic with actual value
+                                string[] instructionSplit = instruction.Split(' ');
+
+                                string arg = instructionSplit[1].Replace("n", operand_hexascii);
+                                instruction = instructionSplit[0] + " " + arg;
+
+                                // Check for 'fork' or change of the path (RELATIVE JUMP)
+                                if ((type == TYPE.CONDITIONALJUMP) || (type == TYPE.UNCONDITIONALJUMP))
+                                {
+                                    UInt16 jmpAddress = 0;
+
+                                    if (operand < 0x80)
+                                    {
+                                        // Positive
+                                        jmpAddress = (UInt16)(address + operand);
+                                    } else
+                                    {
+                                        // Negative
+                                        jmpAddress = (UInt16)(address - (0x100 - operand));
+                                    }
+
+                                    if (useLabels)
+                                    {
+                                        if (!addressSymbolTable.ContainsKey(jmpAddress))
+                                        {
+                                            // Add to dictionary and insert
+                                            addressSymbolTable.Add(jmpAddress, "lbl_jmp" + jmpAddress.ToString("X4"));
+                                            instruction = instructionSplit[0] + " " + instructionSplit[1].Replace("n", "lbl_jmp" + jmpAddress.ToString("X4"));
+                                        } else
+                                        {
+                                            // just insert    
+                                            instruction = instructionSplit[0] + " " + instructionSplit[1].Replace("n", addressSymbolTable[jmpAddress]);
+                                        }
+                                    }
+
+                                    if (type == TYPE.CONDITIONALJUMP)
+                                    {
+                                        if (!addresses.ContainsKey(jmpAddress)) addresses.Add(jmpAddress, false);
+                                    }
+
+                                    if (type == TYPE.UNCONDITIONALJUMP)
+                                    {
+                                        address = jmpAddress;
+                                    }
+                                }
                             }
                         }
 
                         // 2 operands
-                        if (count == 2)
+                        if (size == 3)
                         {
                             byte firstByte = 0x00;
                             byte secondByte = 0x00;
@@ -175,66 +202,66 @@ namespace JuniorComputer
                             string first = "?";
                             string second = "?";
 
-                            address++;
                             if ((address - loadAddress) < bytes.Length)
                             {
                                 firstByte = bytes[(UInt16)(address - loadAddress)];
                                 first = firstByte.ToString("X2");
                                 lineDecoded[address] = true;
-
                                 address++;
+
                                 if ((address - loadAddress) < bytes.Length)
                                 {
                                     secondByte = bytes[(UInt16)(address - loadAddress)];
                                     second = secondByte.ToString("X2");
                                     lineDecoded[address] = true;
+                                    address++;
                                 }
                             }
 
-                            if ((useLabels)  &&
-                                ((type == TYPE.CONDITIONALJUMP) ||
+                            if (useLabels &&
+                                (
+                                 (type == TYPE.CONDITIONALJUMP) ||
                                  (type == TYPE.UNCONDITIONALJUMP) ||
-                                 (type == TYPE.CONDITIONALCALL) ||
-                                 (type == TYPE.UNCONDITIONALCALL)))
+                                 (type == TYPE.UNCONDITIONALCALL)
+                                )
+                               )
                             {
                                 UInt16 jmpsubAddress = (UInt16)(secondByte * 0x100 + firstByte);
 
                                 if (!addressSymbolTable.ContainsKey(jmpsubAddress))
                                 {
                                     // Add to dictionary and insert
-                                    int i = 0;
                                     if ((type == TYPE.CONDITIONALJUMP) || (type == TYPE.UNCONDITIONALJUMP))
                                     {
-                                        while (addressSymbolTable.ContainsValue("lbl_jmp" + i.ToString("D4"))) i++;
-                                        addressSymbolTable.Add(jmpsubAddress, "lbl_jmp" + i.ToString("D4"));
-                                        instruction += " lbl_jmp" + i.ToString("D4");
+                                        addressSymbolTable.Add(jmpsubAddress, "lbl_jmp" + jmpsubAddress.ToString("X4"));
+
+                                        string[] instructionSplit = instruction.Split(' ');
+                                        instruction = instructionSplit[0] + " " + instructionSplit[1].Replace("nn", "lbl_jmp" + jmpsubAddress.ToString("X4"));
                                     }
 
-                                    if ((type == TYPE.CONDITIONALCALL) || (type == TYPE.UNCONDITIONALCALL))
+                                    if (type == TYPE.UNCONDITIONALCALL)
                                     {
-                                        while (addressSymbolTable.ContainsValue("lbl_sub" + i.ToString("D4"))) i++;
-                                        addressSymbolTable.Add(jmpsubAddress, "lbl_sub" + i.ToString("D4"));
-                                        instruction += " lbl_sub" + i.ToString("D4");
+                                        addressSymbolTable.Add(jmpsubAddress, "lbl_sub" + jmpsubAddress.ToString("X4"));
+
+                                        string[] instructionSplit = instruction.Split(' ');
+                                        instruction = instructionSplit[0] + " " + instructionSplit[1].Replace("nn", "lbl_sub" + jmpsubAddress.ToString("X4"));
                                     }
                                 } else
                                 {
                                     // Just insert
-                                    instruction += " " + addressSymbolTable[jmpsubAddress];
+                                    string[] instructionSplit = instruction.Split(' ');
+                                    instruction = instructionSplit[0] + " " + instructionSplit[1].Replace("nn", addressSymbolTable[jmpsubAddress]);
                                 }
                             } else
                             {
                                 // Inverted (low byte first, high byte second)
-                                string operand = " " + second + first + "H";
-
-                                instruction += operand;
+                                string operand = "$" + second + first;
+                                string[] instructionSplit = instruction.Split(' ');
+                                instruction = instructionSplit[0] + " " + instructionSplit[1].Replace("nn", operand);
                             }
-
-                            // Next address
-                            address++;
 
                             // Check for 'fork' of the path (JUMP ON PARITY, CALL ON ZERO etc.)
                             if ((type == TYPE.CONDITIONALJUMP) ||
-                                (type == TYPE.CONDITIONALCALL) ||
                                 (type == TYPE.UNCONDITIONALCALL))
                             {
                                 UInt16 newAddress = (UInt16)(secondByte * 0x100 + firstByte);
@@ -249,7 +276,7 @@ namespace JuniorComputer
                         }
 
                         // Add program line (address + instruction)
-                        dtProgram.Rows.Add(addressCurrentInstruction, instruction, count + 1, type);
+                        dtProgram.Rows.Add(addressCurrentInstruction, instruction, size, type);
                     }
 
                     // Set this key has been done
@@ -291,16 +318,16 @@ namespace JuniorComputer
                         {
                             if (i != lastAddress + lastSize) arg += ", ";
                             byte dataByte = bytes[(UInt16)(i - loadAddress)];
-                            arg += dataByte.ToString("X2") + "H";
+                            arg += "$" + dataByte.ToString("X2");
                             argASCII += (dataByte > 0x20) && (dataByte < 0x80) ? ((char)(bytes[(UInt16)(i - loadAddress)])).ToString() : ".";
                         }
 
-                        if (useLabels) program += "             ";
-                        program += "DB " + arg + argASCII + "\r\n";
+                        if (useLabels) program += "                  ";
+                        program += ".DB " + arg + argASCII + "\r\n";
 
                         linedprogram += (lastAddress + lastSize).ToString("X4") + ": ";
-                        if (useLabels) linedprogram += "         ";
-                        linedprogram += "DB " + arg + argASCII + "\r\n";
+                        if (useLabels) linedprogram += "             ";
+                        linedprogram += ".DB " + arg + argASCII + "\r\n";
                     }
 
                     if (currentAddress != 0) lastAddress = currentAddress;
@@ -350,7 +377,6 @@ namespace JuniorComputer
                     linedprogram += row["instruction"];
                 }
 
-                if ((row["type"] != DBNull.Value) && (Convert.ToInt32(row["type"]) == Convert.ToInt32(TYPE.PCHL))) linedprogram += " ; Warning: Branch address cannot be determined";
                 linedprogram += "\r\n";
             }
 
@@ -363,16 +389,16 @@ namespace JuniorComputer
                 {
                     if (i != lastAddress + lastSize) arg += ", ";
                     byte dataByte = bytes[(UInt16)(i - loadAddress)];
-                    arg += dataByte.ToString("X2") + "h";
+                    arg += "$" + dataByte.ToString("X2");
                     argASCII += (dataByte > 0x20) && (dataByte < 0x80) ? ((char)(bytes[(UInt16)(i - loadAddress)])).ToString() : ".";
                 }
 
                 if (useLabels) program += "             ";
-                program += "db " + arg + argASCII + "\r\n";
+                program += ".DB " + arg + argASCII + "\r\n";
 
                 linedprogram += (lastAddress + lastSize).ToString("X4") + ": ";
-                if (useLabels) linedprogram += "         ";
-                linedprogram += "db " + arg + argASCII + "\r\n";
+                if (useLabels) linedprogram += "             ";
+                linedprogram += ".DB " + arg + argASCII + "\r\n";
             }
 
             // Add not used address labels as EQU statements
@@ -381,7 +407,7 @@ namespace JuniorComputer
                 string labels = "";
                 foreach (KeyValuePair<UInt16, string> kvp in addressSymbolTableNotUsed)
                 {
-                    labels += kvp.Value + " EQU " + kvp.Key.ToString("X4") + "H\r\n";
+                    labels += kvp.Value + " .EQU " + kvp.Key.ToString("X4") + "H\r\n";
                 }
 
                 if (labels != "")
@@ -397,878 +423,31 @@ namespace JuniorComputer
         /// <summary>
         /// Decode a singe instruction and state the number of operand bytes
         /// </summary>
-        /// <param name="hexcode"></param>
+        /// <param name="code"></param>
         /// <param name="count"></param>
         /// <param name="type"></param>
         /// <returns></returns>
-        private string Decode(byte hexcode, out uint count, out TYPE type)
+        private string Decode(byte code, out int size, out TYPE type)
         {
-            string opcode = "";
-            count = 0;
+            string mnemonic = "";
+            size = 0;
             type = TYPE.NONE;
 
-            switch (hexcode)
+            // Check opcode to find the instruction in the list
+            for (int index = 0; index < instructions.MainInstructions.Length; index++)
             {
-                case 0x00:
-                    opcode = "NOP";
-                    break;
-		        case 0x01:
-                    opcode = "LXI B,";
-                    count = 2;
-                    break;
-		        case 0x02:
-                    opcode = "STAX B";
-                    break;
-		        case 0x03:
-                    opcode = "INX B";
-                    break;
-		        case 0x04:
-                    opcode = "INR B";
-                    break;
-		        case 0x05:
-                    opcode = "DCR B";
-                    break;
-		        case 0x06:
-                    opcode = "MVI B,";
-                    count = 1;
-                    break;
-                case 0x07:
-                    opcode = "RLC";
-                    break;
-		        case 0x08:
-                    opcode = "DSUB";
-                    break;
-		        case 0x09:
-                    opcode = "DAD B";
-                    break;
-		        case 0x0a:
-                    opcode = "LDAX B";
-                    break;
-		        case 0x0b:
-                    opcode = "DCX B";
-                    break;
-		        case 0x0c:
-                    opcode = "INR C";
-                    break;
-		        case 0x0d:
-                    opcode = "DCR C";
-                    break;
-		        case 0x0e:
-                    opcode = "MVI C,";
-                    count = 1;
-                    break;
-		        case 0x0f:
-                    opcode = "RRC";
-                    break;
-		        case 0x10:
-                    opcode = "ARHL";
-                    break;
-		        case 0x11:
-                    opcode = "LXI D,";
-                    count = 2;
-                    break;
-		        case 0x12:
-                    opcode = "STAX D";
-                    break;
-		        case 0x13:
-                    opcode = "INX D";
-                    break;
-		        case 0x14:
-                    opcode = "INR D";
-                    break;
-		        case 0x15:
-                    opcode = "DCR D";
-                    break;
-		        case 0x16:
-                    opcode = "MVI D,";
-                    count = 1;
-                    break;
-		        case 0x17:
-                    opcode = "RAL";
-                    break;
-		        case 0x18:
-                    opcode = "RDEL";
-                    break;
-		        case 0x19:
-                    opcode = "DAD D";
-                    break;
-		        case 0x1a:
-                    opcode = "LDAX D";
-                    break;
-		        case 0x1b:
-                    opcode = "DCX D";
-                    break;
-		        case 0x1c:
-                    opcode = "INR E";
-                    break;
-		        case 0x1d:
-                    opcode = "DCR E";
-                    break;
-		        case 0x1e:
-                    opcode = "MVI E,";
-                    count = 1;
-                    break;
-		        case 0x1f:
-                    opcode = "RAR";
-                    break;
-		        case 0x20:
-                    opcode = "RIM";
-                    break;
-		        case 0x21:
-                    opcode = "LXI H,";
-                    count = 2;
-                    break;
-		        case 0x22:
-                    opcode = "SHLD";
-                    count = 2;
-                    break;
-		        case 0x23:
-                    opcode = "INX H";
-                    break;
-		        case 0x24:
-                    opcode = "INR H";
-                    break;
-		        case 0x25:
-                    opcode = "DCR H";
-                    break;
-		        case 0x26:
-                    opcode = "MVI H,";
-                    count = 1;
-                    break;
-		        case 0x27:
-                    opcode = "DAA";
-                    break;
-		        case 0x28:
-                    opcode = "LDHI";
-                    break;
-                case 0x29:
-                    opcode = "DAD H";
-                    break;
-		        case 0x2a:
-                    opcode = "LHLD";
-                    count = 2;
-                    break;
-		        case 0x2b:
-                    opcode = "DCX H";
-                    break;
-		        case 0x2c:
-                    opcode = "INR L";
-                    break;
-		        case 0x2d:
-                    opcode = "DCR L";
-                    break;
-		        case 0x2e:
-                    opcode = "MVI L,";
-                    count = 1;
-                    break;
-		        case 0x2f:
-                    opcode = "CMA";
-                    break;
-		        case 0x30:
-                    opcode = "SIM";
-                    break;
-		        case 0x31:
-                    opcode = "LXI SP,";
-                    count = 2;
-                    break;
-		        case 0x32:
-                    opcode = "STA";
-                    count = 2;
-                    break;
-		        case 0x33:
-                    opcode = "INX SP";
-                    break;
-		        case 0x34:
-                    opcode = "INR M";
-                    break;
-		        case 0x35:
-                    opcode = "DCR M";
-                    break;
-		        case 0x36:
-                    opcode = "MVI M,";
-                    count = 1;
-                    break;
-		        case 0x37:
-                    opcode = "STC";
-                    break;
-		        case 0x38:
-                    opcode = "LDSI";
-                    count = 1;
-                    break;
-                case 0x39:
-                    opcode = "DAD SP";
-                    break;
-		        case 0x3a:
-                    opcode = "LDA";
-                    count = 2;
-                    break;
-		        case 0x3b:
-                    opcode = "DCX SP";
-                    break;
-		        case 0x3c:
-                    opcode = "INR A";
-                    break;
-		        case 0x3d:
-                    opcode = "DCR A";
-                    break;
-		        case 0x3e:
-                    opcode = "MVI A,";
-                    count = 1;
-                    break;
-		        case 0x3f:
-                    opcode = "CMC";
-                    break;
-		        case 0x40:
-                    opcode = "MOV B,B";
-                    break;
-		        case 0x41:
-                    opcode = "MOV B,C";
-                    break;
-		        case 0x42:
-                    opcode = "MOV B,D";
-                    break;
-		        case 0x43:
-                    opcode = "MOV B,E";
-                    break;
-		        case 0x44:
-                    opcode = "MOV B,H";
-                    break;
-		        case 0x45:
-                    opcode = "MOV B,L";
-                    break;
-		        case 0x46:
-                    opcode = "MOV B,M";
-                    break;
-		        case 0x47:
-                    opcode = "MOV B,A";
-                    break;
-		        case 0x48:
-                    opcode = "MOV C,B";
-                    break;
-		        case 0x49:
-                    opcode = "MOV C,C";
-                    break;
-		        case 0x4a:
-                    opcode = "MOV C,D";
-                    break;
-		        case 0x4b:
-                    opcode = "MOV C,E";
-                    break;
-		        case 0x4c:
-                    opcode = "MOV C,H";
-                    break;
-		        case 0x4d:
-                    opcode = "MOV C,L";
-                    break;
-		        case 0x4e:
-                    opcode = "MOV C,M";
-                    break;
-		        case 0x4f:
-                    opcode = "MOV C,A";
-                    break;
-		        case 0x50:
-                    opcode = "MOV D,B";
-                    break;
-		        case 0x51:
-                    opcode = "MOV D,C";
-                    break;
-		        case 0x52:
-                    opcode = "MOV D,D";
-                    break;
-		        case 0x53:
-                    opcode = "MOV D,E";
-                    break;
-		        case 0x54:
-                    opcode = "MOV D,H";
-                    break;
-		        case 0x55:
-                    opcode = "MOV D,L";
-                    break;
-		        case 0x56:
-                    opcode = "MOV D,M";
-                    break;
-		        case 0x57:
-                    opcode = "MOV D,A";
-                    break;
-		        case 0x58:
-                    opcode = "MOV E,B";
-                    break;
-		        case 0x59:
-                    opcode = "MOV E,C";
-                    break;
-		        case 0x5a:
-                    opcode = "MOV E,D";
-                    break;
-		        case 0x5b:
-                    opcode = "MOV E,E";
-                    break;
-		        case 0x5c:
-                    opcode = "MOV E,H";
-                    break;
-		        case 0x5d:
-                    opcode = "MOV E,L";
-                    break;
-		        case 0x5e:
-                    opcode = "MOV E,M";
-                    break;
-		        case 0x5f:
-                    opcode = "MOV E,A";
-                    break;
-		        case 0x60:
-                    opcode = "MOV H,B";
-                    break;
-		        case 0x61:
-                    opcode = "MOV H,C";
-                    break;
-		        case 0x62:
-                    opcode = "MOV H,D";
-                    break;
-		        case 0x63:
-                    opcode = "MOV H,E";
-                    break;
-		        case 0x64:
-                    opcode = "MOV H,H";
-                    break;
-		        case 0x65:
-                    opcode = "MOV H,L";
-                    break;
-		        case 0x66:
-                    opcode = "MOV H,M";
-                    break;
-		        case 0x67:
-                    opcode = "MOV H,A";
-                    break;
-		        case 0x68:
-                    opcode = "MOV L,B";
-                    break;
-		        case 0x69:
-                    opcode = "MOV L,C";
-                    break;
-		        case 0x6a:
-                    opcode = "MOV L,D";
-                    break;
-		        case 0x6b:
-                    opcode = "MOV L,E";
-                    break;
-		        case 0x6c:
-                    opcode = "MOV L,H";
-                    break;
-		        case 0x6d:
-                    opcode = "MOV L,L";
-                    break;
-		        case 0x6e:
-                    opcode = "MOV L,M";
-                    break;
-		        case 0x6f:
-                    opcode = "MOV L,A";
-                    break;
-		        case 0x70:
-                    opcode = "MOV M,B";
-                    break;
-		        case 0x71:
-                    opcode = "MOV M,C";
-                    break;
-		        case 0x72:
-                    opcode = "MOV M,D";
-                    break;
-		        case 0x73:
-                    opcode = "MOV M,E";
-                    break;
-		        case 0x74:
-                    opcode = "MOV M,H";
-                    break;
-		        case 0x75:
-                    opcode = "MOV M,L";
-                    break;
-		        case 0x76:
-                    opcode = "HLT";
-                    break;
-		        case 0x77:
-                    opcode = "MOV M,A";
-                    break;
-		        case 0x78:
-                    opcode = "MOV A,B";
-                    break;
-		        case 0x79:
-                    opcode = "MOV A,C";
-                    break;
-		        case 0x7a:
-                    opcode = "MOV A,D";
-                    break;
-		        case 0x7b:
-                    opcode = "MOV A,E";
-                    break;
-		        case 0x7c:
-                    opcode = "MOV A,H";
-                    break;
-		        case 0x7d:
-                    opcode = "MOV A,L";
-                    break;
-		        case 0x7e:
-                    opcode = "MOV A,M";
-                    break;
-		        case 0x7f:
-                    opcode = "MOV A,A";
-                    break;
-		        case 0x80:
-                    opcode = "ADD B";
-                    break;
-		        case 0x81:
-                    opcode = "ADD C";
-                    break;
-		        case 0x82:
-                    opcode = "ADD D";
-                    break;
-		        case 0x83:
-                    opcode = "ADD E";
-                    break;
-		        case 0x84:
-                    opcode = "ADD H";
-                    break;
-		        case 0x85:
-                    opcode = "ADD L";
-                    break;
-		        case 0x86:
-                    opcode = "ADD M";
-                    break;
-		        case 0x87:
-                    opcode = "ADD A";
-                    break;
-		        case 0x88:
-                    opcode = "ADC B";
-                    break;
-		        case 0x89:
-                    opcode = "ADC C";
-                    break;
-		        case 0x8a:
-                    opcode = "ADC D";
-                    break;
-		        case 0x8b:
-                    opcode = "ADC E";
-                    break;
-		        case 0x8c:
-                    opcode = "ADC H";
-                    break;
-		        case 0x8d:
-                    opcode = "ADC L";
-                    break;
-		        case 0x8e:
-                    opcode = "ADC M";
-                    break;
-		        case 0x8f:
-                    opcode = "ADC A";
-                    break;
-		        case 0x90:
-                    opcode = "SUB B";
-                    break;
-		        case 0x91:
-                    opcode = "SUB C";
-                    break;
-		        case 0x92:
-                    opcode = "SUB D";
-                    break;
-		        case 0x93:
-                    opcode = "SUB E";
-                    break;
-		        case 0x94:
-                    opcode = "SUB H";
-                    break;
-		        case 0x95:
-                    opcode = "SUB L";
-                    break;
-		        case 0x96:
-                    opcode = "SUB M";
-                    break;
-		        case 0x97:
-                    opcode = "SUB A";
-                    break;
-		        case 0x98:
-                    opcode = "SBB B";
-                    break;
-		        case 0x99:
-                    opcode = "SBB C";
-                    break;
-		        case 0x9a:
-                    opcode = "SBB D";
-                    break;
-		        case 0x9b:
-                    opcode = "SBB E";
-                    break;
-		        case 0x9c:
-                    opcode = "SBB H";
-                    break;
-		        case 0x9d:
-                    opcode = "SBB L";
-                    break;
-		        case 0x9e:
-                    opcode = "SBB M";
-                    break;
-		        case 0x9f:
-                    opcode = "SBB A";
-                    break;
-		        case 0xa0:
-                    opcode = "ANA B";
-                    break;
-		        case 0xa1:
-                    opcode = "ANA C";
-                    break;
-		        case 0xa2:
-                    opcode = "ANA D";
-                    break;
-		        case 0xa3:
-                    opcode = "ANA E";
-                    break;
-		        case 0xa4:
-                    opcode = "ANA H";
-                    break;
-		        case 0xa5:
-                    opcode = "ANA L";
-                    break;
-		        case 0xa6:
-                    opcode = "ANA M";
-                    break;
-		        case 0xa7:
-                    opcode = "ANA A";
-                    break;
-		        case 0xa8:
-                    opcode = "XRA B";
-                    break;
-		        case 0xa9:
-                    opcode = "XRA C";
-                    break;
-		        case 0xaa:
-                    opcode = "XRA D";
-                    break;
-		        case 0xab:
-                    opcode = "XRA E";
-                    break;
-		        case 0xac:
-                    opcode = "XRA H";
-                    break;
-		        case 0xad:
-                    opcode = "XRA L";
-                    break;
-		        case 0xae:
-                    opcode = "XRA M";
-                    break;
-		        case 0xaf:
-                    opcode = "XRA A";
-                    break;
-		        case 0xb0:
-                    opcode = "ORA B";
-                    break;
-		        case 0xb1:
-                    opcode = "ORA C";
-                    break;
-		        case 0xb2:
-                    opcode = "ORA D";
-                    break;
-		        case 0xb3:
-                    opcode = "ORA E";
-                    break;
-		        case 0xb4:
-                    opcode = "ORA H";
-                    break;
-		        case 0xb5:
-                    opcode = "ORA L";
-                    break;
-		        case 0xb6:
-                    opcode = "ORA M";
-                    break;
-		        case 0xb7:
-                    opcode = "ORA A";
-                    break;
-		        case 0xb8:
-                    opcode = "CMP B";
-                    break;
-		        case 0xb9:
-                    opcode = "CMP C";
-                    break;
-		        case 0xba:
-                    opcode = "CMP D";
-                    break;
-		        case 0xbb:
-                    opcode = "CMP E";
-                    break;
-		        case 0xbc:
-                    opcode = "CMP H";
-                    break;
-		        case 0xbd:
-                    opcode = "CMP L";
-                    break;
-		        case 0xbe:
-                    opcode = "CMP M";
-                    break;
-		        case 0xbf:
-                    opcode = "CMP A";
-                    break;
-		        case 0xc0:
-                    opcode = "RNZ";
-                    break;
-		        case 0xc1:
-                    opcode = "POP B";
-                    break;
-		        case 0xc2:
-                    opcode = "JNZ";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xc3:
-                    opcode = "JMP";
-                    count = 2;
-                    type = TYPE.UNCONDITIONALJUMP;
-                    break;
-		        case 0xc4:
-                    opcode = "CNZ";
-                    count = 2;
-                    type = TYPE.CONDITIONALCALL;
-                    break;
-		        case 0xc5:
-                    opcode = "PUSH B";
-                    break;
-		        case 0xc6:
-                    opcode = "ADI";
-                    count = 1;
-                    break;
-		        case 0xc7:
-                    opcode = "RST 0";
-                    type = TYPE.UNCONDITIONALRESTART;
-                    break;
-		        case 0xc8:
-                    opcode = "RZ";
-                    type = TYPE.CONDITIONALRETURN;
-                    break;
-		        case 0xc9:
-                    opcode = "RET";
-                    type = TYPE.UNCONDITIONALRETURN;
-                    break;
-		        case 0xca:
-                    opcode = "JZ";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xcb:
-                    opcode = "RSTV";
-                    type = TYPE.CONDITIONALRESTART;
-                    break;
-		        case 0xcc:
-                    opcode = "CZ";
-                    count = 2;
-                    type = TYPE.CONDITIONALCALL;
-                    break;
-		        case 0xcd:
-                    opcode = "CALL";
-                    count = 2;
-                    type = TYPE.UNCONDITIONALCALL;
-                    break;
-		        case 0xce:
-                    opcode = "ACI";
-                    count = 1;
-                    break;
-		        case 0xcf:
-                    opcode = "RST 1";
-                    type = TYPE.UNCONDITIONALRESTART;
-                    break;
-		        case 0xd0:
-                    opcode = "RNC";
-                    type = TYPE.CONDITIONALRETURN;
-                    break;
-		        case 0xd1:
-                    opcode = "POP D";
-                    break;
-		        case 0xd2:
-                    opcode = "JNC";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xd3:
-                    opcode = "OUT";
-                    count = 1;
-                    break;
-		        case 0xd4:
-                    opcode = "CNC";
-                    count = 2;
-                    type = TYPE.CONDITIONALCALL;
-                    break;
-		        case 0xd5:
-                    opcode = "PUSH D";
-                    break;
-		        case 0xd6:
-                    opcode = "SUI";
-                    count = 1;
-                    break;
-		        case 0xd7:
-                    opcode = "RST 2";
-                    type = TYPE.UNCONDITIONALRESTART;
-                    break;
-		        case 0xd8:
-                    opcode = "RC";
-                    type = TYPE.CONDITIONALRETURN;
-                    break;
-		        case 0xd9:
-                    opcode = "SHLX";
-                    break;
-		        case 0xda:
-                    opcode = "JC";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xdb:
-                    opcode = "IN";
-                    count = 1;
-                    break;
-		        case 0xdc:
-                    opcode = "CC";
-                    count = 2;
-                    type = TYPE.CONDITIONALCALL;
-                    break;
-		        case 0xdd:
-                    opcode = "JNK";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xde:
-                    opcode = "SBI";
-                    count = 1;
-                    break;
-		        case 0xdf:
-                    opcode = "RST 3";
-                    type = TYPE.UNCONDITIONALRESTART;
-                    break;
-		        case 0xe0:
-                    opcode = "RPO";
-                    type = TYPE.CONDITIONALRETURN;
-                    break;
-		        case 0xe1:
-                    opcode = "POP H";
-                    break;
-		        case 0xe2:
-                    opcode = "JPO";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xe3:
-                    opcode = "XTHL";
-                    break;
-		        case 0xe4:
-                    opcode = "CPO";
-                    count = 2;
-                    type = TYPE.CONDITIONALCALL;
-                    break;
-		        case 0xe5:
-                    opcode = "PUSH H";
-                    break;
-		        case 0xe6:
-                    opcode = "ANI";
-                    count = 1;
-                    break;
-		        case 0xe7:
-                    opcode = "RST 4";
-                    type = TYPE.UNCONDITIONALRESTART;
-                    break;
-		        case 0xe8:
-                    opcode = "RPE";
-                    type = TYPE.CONDITIONALRETURN;
-                    break;
-		        case 0xe9:
-                    opcode = "PCHL";
-                    type = TYPE.PCHL;
-                    break;
-		        case 0xea:
-                    opcode = "JPE";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xeb:
-                    opcode = "XCHG";
-                    break;
-		        case 0xec:
-                    opcode = "CPE";
-                    count = 2;
-                    type = TYPE.CONDITIONALCALL;
-                    break;
-		        case 0xed:
-                    opcode = "LHLX";
-                    break;
-		        case 0xee:
-                    opcode = "XRI";
-                    count = 1;
-                    break;
-		        case 0xef:
-                    opcode = "RST 5";
-                    type = TYPE.UNCONDITIONALRESTART;
-                    break;
-		        case 0xf0:
-                    opcode = "RP";
-                    type = TYPE.CONDITIONALRETURN;
-                    break;
-		        case 0xf1:
-                    opcode = "POP PSW";
-                    break;
-		        case 0xf2:
-                    opcode = "JP";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xf3:
-                    opcode = "DI";
-                    break;
-		        case 0xf4:
-                    opcode = "CP";
-                    count = 2;
-                    type = TYPE.CONDITIONALCALL;
-                    break;
-		        case 0xf5:
-                    opcode = "PUSH PSW";
-                    break;
-		        case 0xf6:
-                    opcode = "ORI";
-                    count = 1;
-                    break;
-		        case 0xf7:
-                    opcode = "RST 6";
-                    type = TYPE.UNCONDITIONALRESTART;
-                    break;
-		        case 0xf8:
-                    opcode = "RM";
-                    type = TYPE.CONDITIONALRETURN;
-                    break;
-		        case 0xf9:
-                    opcode = "SPHL";
-                    break;
-                case 0xfa:
-                    opcode = "JM";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xfb:
-                    opcode = "EI";
-                    break;
-		        case 0xfc:
-                    opcode = "CM";
-                    count = 2;
-                    type = TYPE.CONDITIONALCALL;
-                    break;
-		        case 0xfd:
-                    opcode = "JK";
-                    count = 2;
-                    type = TYPE.CONDITIONALJUMP;
-                    break;
-		        case 0xfe:
-                    opcode = "CPI";
-                    count = 1;
-                    break;
-		        case 0xff:
-                    opcode = "RST 7";
-                    type = TYPE.UNCONDITIONALRESTART;
-                    break;
+                // Opcode matches
+                if (code == instructions.MainInstructions[index].Opcode)
+                {
+                    mnemonic = instructions.MainInstructions[index].Mnemonic;
+                    size = instructions.MainInstructions[index].Size;
+                    type = instructions.MainInstructions[index].Type;
 
-                default:
-                    opcode = "UNKNOWN";
-                    break;
+                    return (mnemonic);
+                }
             }
 
-            return (opcode);
+            return ("");
         }
 
         #endregion

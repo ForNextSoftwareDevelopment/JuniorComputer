@@ -233,7 +233,7 @@
                 new Instruction(0x96, "STX n,Y", 2, TYPE.NONE, ADDRESSING.ZEROPAGEY, "Store register X"),
                 new Instruction(0x97, "-", 1, TYPE.NONE, ADDRESSING.IMPLIED, ""),
                 new Instruction(0x98, "TYA", 1, TYPE.NONE, ADDRESSING.IMPLIED, "Transfer register Y to Accumulator"),
-                new Instruction(0x99, "STA nn,Y", 2, TYPE.NONE, ADDRESSING.ABSOLUTEY, "Store Accumulator"),
+                new Instruction(0x99, "STA nn,Y", 3, TYPE.NONE, ADDRESSING.ABSOLUTEY, "Store Accumulator"),
                 new Instruction(0x9A, "TXS", 1, TYPE.NONE, ADDRESSING.IMPLIED, "Transfer register X to Stack Pointer"),
                 new Instruction(0x9B, "-", 1, TYPE.NONE, ADDRESSING.IMPLIED, ""),
                 new Instruction(0x9C, "-", 1, TYPE.NONE, ADDRESSING.IMPLIED, ""),
