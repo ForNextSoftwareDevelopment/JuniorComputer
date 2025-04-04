@@ -9,8 +9,6 @@ This contains the operating system.
 Use the button 'Debug' to debug/assemble the file.
 Then press the button 'Fast' (fast forward sign) to run the program.
 
-THIS IS A BETA VERSION, STILL WORKING ON IT !
-
 Copyright (c) 2023 Dirk Prins
 
 ![Screenshot](ScreenShot.png)
