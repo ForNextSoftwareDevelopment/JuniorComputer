@@ -5,3 +5,8 @@ All notable changes to this project will be documented in this file.
 ### Initial Release Beta
 https://github.com/ForNextSoftwareDevelopment/JuniorComputer
 
+## [1.1] - 2025-04-04
+### Release
+### Debug
+- DisAssembler updated 
+- Assembler updated
