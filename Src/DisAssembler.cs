@@ -407,7 +407,7 @@ namespace JuniorComputer
                 string labels = "";
                 foreach (KeyValuePair<UInt16, string> kvp in addressSymbolTableNotUsed)
                 {
-                    labels += kvp.Value + " .EQU " + kvp.Key.ToString("X4") + "H\r\n";
+                    labels += kvp.Value + " .EQU " + "$" + kvp.Key.ToString("X4") + "\r\n";
                 }
 
                 if (labels != "")
