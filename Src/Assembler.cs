@@ -779,8 +779,9 @@ namespace JuniorComputer
                     if (line == "") continue;
 
                     // if a comment is found, remove
-                    int start_of_comment_pos = line.IndexOf(';');
-                    if (start_of_comment_pos != -1)
+                    int start_of_search_pos = 0;
+                    int start_of_comment_pos = line.IndexOf(';', start_of_search_pos);
+                    while (start_of_comment_pos != -1)
                     {
                         // Check if really a comment (; could be in a string or char array)
                         int num_quotes = 0;
@@ -791,8 +792,17 @@ namespace JuniorComputer
 
                         if ((num_quotes % 2) == 0)
                         {
-                            line = line.Remove(line.IndexOf(';')).Trim();
-                            if (line == "") continue;
+                            line = line.Remove(line.IndexOf(';', start_of_search_pos)).Trim();
+                        }
+
+                        start_of_search_pos = start_of_comment_pos + 1;
+
+                        if (start_of_search_pos < line.Length)
+                        {
+                            start_of_comment_pos = line.IndexOf(';', start_of_search_pos);
+                        } else
+                        {
+                            start_of_comment_pos = -1;
                         }
                     }
 
@@ -1410,7 +1420,7 @@ namespace JuniorComputer
                                 }
                             }
                             continue;
-                        case ".DW":                                                                                    // .DN
+                        case ".DW":                                                                                    // .DW
                             for (k = 0; k < operands.Length; k++)
                             {
                                 // Extract all DW operands
