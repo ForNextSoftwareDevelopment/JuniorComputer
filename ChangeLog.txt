@@ -10,3 +10,9 @@ https://github.com/ForNextSoftwareDevelopment/JuniorComputer
 ### Debug
 - DisAssembler updated 
 - Assembler updated
+
+## [1.2] - 2025-04-11
+### Debug
+- .DB not working if a ';' was in the data (it was viewed as comment)
+### Updates
+- Disassemble standard to prefix $ (with .EQU a suffix of H was used)  
