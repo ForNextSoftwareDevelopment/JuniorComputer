@@ -659,7 +659,7 @@ namespace JuniorComputer
                                     if (!opr.StartsWith("#")) matchOperands = false;
                                     break;
                                 case "n":
-                                    if (opr.StartsWith("("))
+                                    if ((opr.StartsWith("(") || opr.StartsWith("#")))
                                     {
                                         matchOperands = false;
                                     } else if ((opcode != "BNE") && 
