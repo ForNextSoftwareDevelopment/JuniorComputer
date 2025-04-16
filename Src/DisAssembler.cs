@@ -59,7 +59,7 @@ namespace JuniorComputer
             // All instructions
             instructions = new Instructions();
             
-            lineDecoded = new bool[0xFFFF];
+            lineDecoded = new bool[0x10000];
             addresses = new Dictionary<ushort, bool>();
 
             for (int i=0; i<lineDecoded.Length; i++)

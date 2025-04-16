@@ -165,27 +165,57 @@ namespace JuniorComputer
 
             while (str.Contains("b"))
             {
-                int end = str.IndexOf("b");
-                int start = 0;
-                if (end > start) end--;
-                for (int i = end; i >= 0; i--)
+                int start = str.IndexOf("b");
+                int end = str.Length;
+                if (end > start) start++;
+                for (int i = start; i < str.Length; i++)
                 {
-                    if (str[i] == ' ') { start = i + 1; break; }
-                    if (str[i] == '+') { start = i + 1; break; }
-                    if (str[i] == '-') { start = i + 1; break; }
-                    if (str[i] == '*') { start = i + 1; break; }
-                    if (str[i] == '/') { start = i + 1; break; }
-                    if (str[i] == '&') { start = i + 1; break; }
-                    if (str[i] == '|') { start = i + 1; break; }
-                    if (str[i] == '(') { start = i + 1; break; }
+                    if (str[i] == ' ') { end = i; break; }
+                    if (str[i] == '+') { end = i; break; }
+                    if (str[i] == '-') { end = i; break; }
+                    if (str[i] == '*') { end = i; break; }
+                    if (str[i] == '/') { end = i; break; }
+                    if (str[i] == '&') { end = i; break; }
+                    if (str[i] == '|') { end = i; break; }
+                    if (str[i] == ')') { end = i; break; }
                 }
 
                 if (end > start)
                 {
-                    string bin = str.Substring(start, end + 1 - start);
+                    string bin = str.Substring(start, end - start);
                     string dec = Convert.ToInt32(bin, 2).ToString();
 
-                    str = str.Replace(bin + "b", dec);
+                    str = str.Replace("b" + bin, dec);
+                } else
+                {
+                    Exception ex = new Exception("\r\nError in binary value in: " + str);
+                    throw (ex);
+                }
+            }
+
+            while (str.Contains("%"))
+            {
+                int start = str.IndexOf("%");
+                int end = str.Length;
+                if (end > start) start++;
+                for (int i = start; i < str.Length; i++)
+                {
+                    if (str[i] == ' ') { end = i; break; }
+                    if (str[i] == '+') { end = i; break; }
+                    if (str[i] == '-') { end = i; break; }
+                    if (str[i] == '*') { end = i; break; }
+                    if (str[i] == '/') { end = i; break; }
+                    if (str[i] == '&') { end = i; break; }
+                    if (str[i] == '|') { end = i; break; }
+                    if (str[i] == ')') { end = i; break; }
+                }
+
+                if (end > start)
+                {
+                    string bin = str.Substring(start, end - start);
+                    string dec = Convert.ToInt32(bin, 2).ToString();
+
+                    str = str.Replace("%" + bin, dec);
                 } else
                 {
                     Exception ex = new Exception("\r\nError in binary value in: " + str);
