@@ -1887,6 +1887,7 @@ namespace JuniorComputer
                         registerPC++;
                         address += (UInt16)(0x0100 * RAM[registerPC]);
                         registerPC = RAM[address];
+                        address++;
                         registerPC += (UInt16)(0x0100 * RAM[address]);
                     }
                 } else if (opcode == "JSR")                                                                                // JSR
