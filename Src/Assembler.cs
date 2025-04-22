@@ -509,7 +509,7 @@ namespace JuniorComputer
                     break;
                 case ADDRESSING.INDIRECTY:
                     pointer = (UInt16)(RAM[registerPC]);
-                    address = (UInt16)(RAM[pointer + registerY] + 0x100 * RAM[pointer + registerY + 1]);
+                    address = (UInt16)(RAM[pointer] + RAM[pointer + 1] * 0x100 + registerY);
                     val = RAM[address];
                     registerPC++;
                     break;
