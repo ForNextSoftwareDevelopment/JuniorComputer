@@ -16,3 +16,9 @@ https://github.com/ForNextSoftwareDevelopment/JuniorComputer
 - .DB not working if a ';' was in the data (it was viewed as comment)
 ### Updates
 - Disassemble standard to prefix $ (with .EQU a suffix of H was used)  
+
+## [1.3] - 2025-04-22
+### Debug
+- LOW and HIGH directives were not always handled correct
+- Indirect addressing for jump was incorrect
+- Indirect Y adressing was incorrect
