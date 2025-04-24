@@ -144,10 +144,10 @@ namespace JuniorComputer
                     // Carry flag
                     if (arg1 - arg2 < 0x00)
                     {
-                        flagC = true;
+                        flagC = false;
                     } else
                     {
-                        flagC = false;
+                        flagC = true;
                     }
 
                     break;
@@ -178,10 +178,10 @@ namespace JuniorComputer
                     // Carry flag
                     if (arg1 - arg2 - (flagC ? 1 : 0) < 0x00)
                     {
-                        flagC = true;
+                        flagC = false;
                     } else
                     {
-                        flagC = false;
+                        flagC = true;
                     }
 
                     // Signed overflow flag
