@@ -111,7 +111,7 @@ namespace JuniorComputer
         #region Methods (Div)
 
         /// <summary>
-        /// Calculate and adjust the flagN on screen
+        /// Calculate and adjust the flags
         /// </summary>
         /// <param name="arg1"></param>
         /// <param name="arg2"></param>
@@ -153,13 +153,13 @@ namespace JuniorComputer
                     break;
 
                 case OPERATOR.ADC:
-                    result = (byte)(arg1 + arg2 + (flagC ? 1:0));
+                    result = (byte)(arg1 + arg2 + (flagC ? 1 : 0));
 
-                    // Carry flag
+                    // Carry flag 
                     if (arg1 + arg2 + (flagC ? 1 : 0) > 0xFF)
                     {
                         flagC = true;
-                    } else 
+                    } else
                     {
                         flagC = false;
                     }
@@ -173,10 +173,10 @@ namespace JuniorComputer
                     break;
 
                 case OPERATOR.SBC:
-                    result = (byte)(arg1 - arg2 - (flagC ? 1 : 0));
+                    result = (byte)(arg1 - arg2 - (flagC ? 0 : 1));
 
                     // Carry flag
-                    if (arg1 - arg2 - (flagC ? 1 : 0) < 0x00)
+                    if (arg1 - arg2 - (flagC ? 0 : 1) < 0x00)
                     {
                         flagC = false;
                     } else
@@ -228,11 +228,11 @@ namespace JuniorComputer
                 flagZ = false;
             }
 
-            return (result);    
+            return (result);
         }
 
         /// <summary>
-        /// Rotate or Shift bitwise and adjust the flags on screen
+        /// Rotate or Shift bitwise and adjust the flags
         /// </summary>
         /// <param name="arg"></param>
         /// <param name="type"></param>

@@ -183,7 +183,7 @@ namespace JuniorComputer
             if (!chkLock.Checked)
             {
                 if (nextInstrAddress > startViewAddress + 0x100) startViewAddress = (UInt16)(nextInstrAddress & 0xFFF0);
-                if (nextInstrAddress < startViewAddress) startViewAddress = (UInt16)(nextInstrAddress & 0xFFF0);
+                if (nextInstrAddress < startViewAddress)         startViewAddress = (UInt16)(nextInstrAddress & 0xFFF0);
             }
 
             UpdateMemoryPanel(startViewAddress, nextInstrAddress);
@@ -988,7 +988,7 @@ namespace JuniorComputer
             if (!chkLock.Checked)
             {
                 if (nextInstrAddress > startViewAddress + 0x100) startViewAddress = (UInt16)(nextInstrAddress & 0xFFF0);
-                if (nextInstrAddress < startViewAddress - 0x100) startViewAddress = (UInt16)(nextInstrAddress & 0xFFF0);
+                if (nextInstrAddress < startViewAddress)         startViewAddress = (UInt16)(nextInstrAddress & 0xFFF0);
             }
 
             UpdateMemoryPanel(startViewAddress, nextInstrAddress);
@@ -1074,7 +1074,7 @@ namespace JuniorComputer
             if (!chkLock.Checked)
             {
                 if (nextInstrAddress > startViewAddress + 0x100) startViewAddress = (UInt16)(nextInstrAddress & 0xFFF0);
-                if (nextInstrAddress < startViewAddress - 0x100) startViewAddress = (UInt16)(nextInstrAddress & 0xFFF0);
+                if (nextInstrAddress < startViewAddress)         startViewAddress = (UInt16)(nextInstrAddress & 0xFFF0);
             }
 
             UpdateMemoryPanel(startViewAddress, nextInstrAddress);
