@@ -714,6 +714,8 @@ namespace JuniorComputer
                                 case "nn":
                                     value = Get2Bytes(opr, out result);
                                     if ((result == "OK") && (value <= 0xFF)) matchOperands = false;
+                                    if ((opcode == "JMP") && (result == "OK") && (value <= 0xFF)) matchOperands = true;
+                                    if ((opcode == "JSR") && (result == "OK") && (value <= 0xFF)) matchOperands = true;
                                     if ((opcode == "STA") && (operands.Length == 2) && (operands[1] == "Y") && (result == "OK") && (value <= 0xFF)) matchOperands = true;
                                     if ((opcode == "LDX") && (operands.Length == 2) && (result == "OK") && (value <= 0xFF)) matchOperands = true;
                                     if (opr.StartsWith("(") || opr.StartsWith("#") || (opr == "A")) matchOperands = false;
